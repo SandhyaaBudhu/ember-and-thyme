@@ -1,0 +1,39 @@
+import { useState } from 'react'
+import { ArrowRight, ArrowUpRight, Check, Leaf, Users } from 'lucide-react'
+import Photo from '../components/Photo'
+import Gallery from '../components/Gallery'
+import FormField from '../components/FormField'
+import { Eyebrow, Modal } from '../components/UI'
+import { eventFormats, images } from '../data/content'
+import { dateKey, displayDate, today } from '../lib/dates'
+
+type Inquiry = { name: string; email: string; date: string; guests: string; occasion: string; notes: string }
+export default function Events() {
+  const [selected, setSelected] = useState<typeof eventFormats[number] | null>(null)
+  const [form, setForm] = useState<Inquiry>({ name: '', email: '', date: '', guests: '8', occasion: 'A celebration', notes: '' })
+  const [errors, setErrors] = useState<Partial<Record<keyof Inquiry, string>>>({})
+  const [sent, setSent] = useState(false)
+  function open(format: typeof eventFormats[number]) { setSelected(format); setSent(false); setErrors({}); setForm({ name: '', email: '', date: '', guests: format.id === 'table' ? '8' : format.id === 'room' ? '12' : '24', occasion: 'A celebration', notes: '' }) }
+  function update(key: keyof Inquiry, value: string) { setForm(current => ({ ...current, [key]: value })); setErrors(current => ({ ...current, [key]: undefined })) }
+  function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const next: Partial<Record<keyof Inquiry, string>> = {}
+    const min = selected?.id === 'table' ? 8 : selected?.id === 'room' ? 12 : 24
+    const max = selected?.id === 'table' ? 12 : selected?.id === 'room' ? 24 : 48
+    if (form.name.trim().length < 2) next.name = 'Please enter your name.'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) next.email = 'Please enter a valid email address.'
+    if (!form.date || form.date < dateKey(today())) next.date = 'Please choose a current or future date.'
+    if (!Number.isInteger(Number(form.guests)) || Number(form.guests) < min || Number(form.guests) > max) next.guests = `This format accommodates ${min}–${max} guests.`
+    setErrors(next)
+    if (Object.keys(next).length) { document.getElementById(`inquiry-${Object.keys(next)[0]}`)?.focus(); return }
+    setSent(true)
+    requestAnimationFrame(() => document.getElementById('inquiry-success')?.focus())
+  }
+  return <>
+    <section className="events-hero"><Photo src={images.room} alt="An atmospheric restaurant set for a private gathering" priority /><div className="events-hero-overlay" /><div className="container"><Eyebrow light>GOOD COMPANY DESERVES A GOOD SETTING</Eyebrow><h1>For the moments<br /><em>worth gathering.</em></h1><p>Big reasons. Small celebrations.<br />A thoughtful setting for your kind of occasion.</p><a className="button button-cream" href="#formats">Find your gathering<ArrowRight size={16} /></a></div></section>
+    <section id="formats" className="container event-formats section-space"><div className="section-heading"><div><Eyebrow>THREE WAYS TO MAKE IT YOURS</Eyebrow><h2>Your occasion.<br /><em>Beautifully considered.</em></h2></div><p className="heading-description">Seasonal menus, warm hospitality, and the little details that make a gathering feel personal.</p></div><div className="event-grid">{eventFormats.map((format, i) => <article key={format.id} className="event-card"><div className="event-photo"><Photo src={format.image} alt={`${format.name}: a sample private dining setting`} /><span>0{i + 1}</span></div><p className="event-capacity"><Users size={15} />{format.capacity}</p><h3>{format.name}</h3><p>{format.detail}</p><div className="event-setup"><span className="small-label">A LITTLE PICTURE OF YOUR EVENING</span><p>{format.setup}</p></div><span className="event-price">{format.price}</span><button className="button button-outline" onClick={() => open(format)}>Enquire about this space<ArrowUpRight size={17} /></button></article>)}</div></section>
+    <section className="event-note"><div className="container"><Leaf size={34} strokeWidth={1} /><h2>The details are <em>our pleasure.</em></h2><p>From the first welcome drink to the last little goodnight.<br />We’ll shape a menu, a setting, and a pace that feels like you.</p><div><span>SEASONAL MENUS</span><span>THOUGHTFUL PAIRINGS</span><span>PERSONAL TOUCHES</span></div></div></section>
+    <section className="gallery-section event-gallery"><div className="container section-heading"><div><Eyebrow>IMAGINE YOUR EVENING HERE</Eyebrow><h2>Set the <em>scene.</em></h2></div><span className="muted">Select a photograph to look closer.</span></div><Gallery /></section>
+    {selected && <Modal title={`Private dining inquiry: ${selected.name}`} onClose={() => setSelected(null)}>{sent ? <div className="inquiry-success"><span className="success-icon"><Check size={29} /></span><Eyebrow>A BEAUTIFUL START</Eyebrow><h2 id="inquiry-success" tabIndex={-1}>Your gathering,<br /><em>imagined.</em></h2><p>Thank you, {form.name.trim().split(' ')[0]}. Your demo inquiry is complete.</p><div className="inquiry-summary"><h3>{selected.name}</h3><p>{form.guests} guests · {form.occasion}</p><p>{displayDate(form.date)}</p></div><p className="booking-demo">This is a demonstration. No inquiry was sent and no venue has been booked.</p><button className="button w-full" onClick={() => setSelected(null)}>Lovely, thank you<Check size={17} /></button></div> : <><Eyebrow>LET’S MAKE AN OCCASION OF IT</Eyebrow><h2 className="inquiry-title">{selected.name}</h2><p className="muted inquiry-description">{selected.capacity} · Tell us a little about your gathering.</p><form noValidate onSubmit={submit}><div className="guest-fields"><FormField label="Your name" id="inquiry-name" error={errors.name}><input id="inquiry-name" autoComplete="name" required maxLength={100} value={form.name} onChange={e => update('name', e.target.value)} placeholder="Full name" aria-invalid={!!errors.name} aria-describedby={errors.name ? 'inquiry-name-error' : undefined} /></FormField><FormField label="Email address" id="inquiry-email" error={errors.email}><input type="email" id="inquiry-email" autoComplete="email" required maxLength={150} value={form.email} onChange={e => update('email', e.target.value)} placeholder="you@example.com" aria-invalid={!!errors.email} aria-describedby={errors.email ? 'inquiry-email-error' : undefined} /></FormField><FormField label="Preferred date" id="inquiry-date" error={errors.date}><input type="date" id="inquiry-date" min={dateKey(today())} required value={form.date} onChange={e => update('date', e.target.value)} aria-invalid={!!errors.date} aria-describedby={errors.date ? 'inquiry-date-error' : undefined} /></FormField><FormField label="Number of guests" id="inquiry-guests" error={errors.guests}><input type="number" id="inquiry-guests" required min={selected.id === 'table' ? 8 : selected.id === 'room' ? 12 : 24} max={selected.id === 'table' ? 12 : selected.id === 'room' ? 24 : 48} value={form.guests} onChange={e => update('guests', e.target.value)} aria-invalid={!!errors.guests} aria-describedby={errors.guests ? 'inquiry-guests-error' : undefined} /></FormField></div><FormField label="The occasion" id="inquiry-occasion"><select id="inquiry-occasion" value={form.occasion} onChange={e => update('occasion', e.target.value)}><option>A celebration</option><option>A wedding gathering</option><option>A team dinner</option><option>A reunion</option><option>Just because</option></select></FormField><FormField label="A little more about your plans" id="inquiry-notes" optional><textarea id="inquiry-notes" rows={3} maxLength={700} value={form.notes} onChange={e => update('notes', e.target.value)} placeholder="Your vision, dietary needs, or something special…" /></FormField><button type="submit" className="button w-full">Send demo inquiry<ArrowRight size={17} /></button><p className="booking-demo">A front-end demonstration. No real inquiry is sent.</p></form></>}</Modal>}
+  </>
+}
